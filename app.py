@@ -187,12 +187,12 @@ def calculate_gas_and_supply():
 
 
 def save_bill(phone_number):
-    # Створення папки Archive, якщо її ще немає
-    if not os.path.exists("Archive"):
-        os.makedirs("Archive")
+    # Створення папки Bill, якщо її ще немає
+    if not os.path.exists("Bill"):
+        os.makedirs("Bill")
 
     # Створення файлу з рахунком
-    file_path = f"Archive/bill_{phone_number[4:]}.txt"
+    file_path = f"Bill/bill_{phone_number[4:]}.txt"
     with open(file_path, "a") as file:
         # Дата і час
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
