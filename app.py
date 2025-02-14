@@ -184,7 +184,6 @@ async def cmd_start(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Error in /start: {e}")
 
-
 # -------------------- Message Handlers --------------------
 # Для кожного message handler використовуємо фільтр F для перевірки стану
 # Обробка введення номера телефону
