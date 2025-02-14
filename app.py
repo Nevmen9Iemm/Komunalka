@@ -136,6 +136,7 @@ class Form(StatesGroup):
     entrance = State()
     floor = State()
     apartment = State()
+    # вибір існуючої адреси або додавання нової
     address_confirm = State()
     # Визначення стану
     service = State()
