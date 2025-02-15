@@ -348,10 +348,10 @@ async def process_apartment(message: types.Message, state: FSMContext):
         await message.answer("Сталася помилка. Спробуйте пізніше.")
 
 
-@dp.message()
-async def default_handler(message: types.Message, state: FSMContext):
-    current_state = await state.get_state()
-    logging.debug(f"Default handler: message.text = {message.text}, current_state = {current_state}")
+# @dp.message()
+# async def default_handler(message: types.Message, state: FSMContext):
+#     current_state = await state.get_state()
+#     logging.debug(f"Default handler: message.text = {message.text}, current_state = {current_state}")
 
 # -------------------- Callback Query Handlers --------------------
 
@@ -546,19 +546,23 @@ async def process_elec_one_previous(message: types.Message, state: FSMContext):
             city = addr_obj.city or ""
             street = addr_obj.street or ""
             house = addr_obj.house or ""
+            apartment = addr_obj.apartment or ""
         else:
-            city, street, house = "", "", ""
+            city, street, house, apartment = "", "", "", ""
 
         # Формування рахунку з округленням числових значень до 2-х десяткових
         bill_text = (
-            f"Дата:                 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"Телефон:                     {data.get('phone')}\n"
-            f"Адреса: {city}, {street}, {house}\n"
-            f"Послуга:      Електроенергія (Однозонний)\n"
-            f"Показники:                {current} - {previous}\n"
-            f"Спожито:                         {consumption} кВт\n"
-            f"Тариф:                       {tariff} грн/кВт\n"
-            f"Вартість:                    {total_cost:.2f} грн"
+            f"{'-' * 47}\n"
+            f"Дата:    {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Телефон:    +{data.get('phone')}\n"
+            f"Адреса:    {city}, {street}, {house}, {apartment}\n"
+            f"{'-' * 47}\n"
+            f"Послуга:    Електроенергія (Однозонний)\n"
+            f"Показники:    {int(current)} - {int(previous)}\n"
+            f"Спожито:    {int(consumption)} кВт\n"
+            f"Тариф:    {tariff:.2f} грн/кВт\n"
+            f"{'-' * 47}\n"
+            f"Вартість:    {total_cost:.2f} грн"
         )
         await message.answer(bill_text)
         await state.clear()
@@ -631,7 +635,6 @@ async def process_elec_two_previous_night(message: types.Message, state: FSMCont
 
         # Завантаження даних адреси з БД за id
         async with async_session() as session:
-
             # Додавання рахунку в БД
             bill = Bill(
                 user_id=data["user_id"],
@@ -662,22 +665,26 @@ async def process_elec_two_previous_night(message: types.Message, state: FSMCont
             city = addr_obj.city or ""
             street = addr_obj.street or ""
             house = addr_obj.house or ""
+            apartment = addr_obj.apartment or ""
         else:
-            city, street, house = "", "", ""
+            city, street, house, apartment = "", "", "", ""
 
         # Формування рахунку з округленням числових значень до 2-х десяткових
         bill_text = (
-            f"Дата:                 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"Телефон:                     {data.get('phone')}\n"
-            f"Адреса: {city}, {street}, {house}\n"
-            f"Послуга:      Електроенергія (Двозонний)\n"
-            f"Показники День:       {current_day:.2f} - {previous_day:.2f}\n"
-            f"Показники Ніч:          {current_night:.2f} - {previous_night:.2f}\n"
-            f"Спожито День:                  {consumption_day:.2f} кВт\n"
-            f"Спожито Ніч:                   {consumption_night:.2f} кВт\n"
-            f"Тариф День:                  {tariff_day:.2f} грн/кВт\n"
-            f"Тариф Ніч:                   {tariff_night:.2f} грн/кВт\n"
-            f"Загальна вартість:           {total_cost:.2f} грн"
+            f"{'-' * 47}\n"
+            f"Дата:    {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Телефон:    +{data.get('phone')}\n"
+            f"Адреса:    {city}, {street}, {house}, {apartment}\n"
+            f"{'-' * 47}\n"
+            f"Послуга:    Електроенергія (Двозонний)\n"
+            f"Показники День:    {int(current_day)} - {int(previous_day)}\n"
+            f"Показники Ніч:    {int(current_night)} - {int(previous_night)}\n"
+            f"Спожито День:    {int(consumption_day)} кВт\n"
+            f"Спожито Ніч:    {int(consumption_night)} кВт\n"
+            f"Тариф День:    {tariff_day:.2f} грн/кВт\n"
+            f"Тариф Ніч:    {tariff_night:.2f} грн/кВт\n"
+            f"{'-' * 47}\n"
+            f"Загальна вартість:    {total_cost:.2f} грн"
         )
         await message.answer(bill_text)
         await state.clear()
@@ -818,25 +825,29 @@ async def process_elec_three_previous_night(message: types.Message, state: FSMCo
             city = addr_obj.city or ""
             street = addr_obj.street or ""
             house = addr_obj.house or ""
+            apartment = addr_obj.apartment or ""
         else:
-            city, street, house = "", "", ""
+            city, street, house, apartment = "", "", "", ""
 
         # Формування рахунку з округленням числових значень до 2-х десяткових
         bill_text = (
-            f"Дата:                 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"Телефон:                     {data.get('phone')}\n"
-            f"Адреса: {city}, {street}, {house}\n"
-            f"Послуга:     Електроенергія (Трьохзонний)\n"
-            f"Показники Пік:            {current_peak} - {previous_peak}\n"
-            f"Показники День:            {current_day} - {previous_day}\n"
-            f"Показники Ніч:            {current_night} - {previous_night}\n"
-            f"Спожито Пік:                     {consumption_peak} кВт\n"
-            f"Спожито День:                     {consumption_day} кВт\n"
-            f"Спожито Ніч:                     {consumption_night} кВт\n"
-            f"Тариф Пік:                   {tariff_peak} грн/кВт\n"
-            f"Тариф День:                   {tariff_day} грн/кВт\n"
-            f"Тариф Ніч:                   {tariff_night} грн/кВт\n"
-            f"Загальна вартість:           {total_cost:.2f} грн"
+            f"{'-' * 47}\n"
+            f"Дата:    {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Телефон:    +{data.get('phone')}\n"
+            f"Адреса:    {city}, {street}, {house}, {apartment}\n"
+            f"{'-' * 47}\n"
+            f"Послуга:    лектроенергія (Трьохзонний)\n"
+            f"Показники Пік:    {int(current_peak)} - {int(previous_peak)}\n"
+            f"Показники День:    {int(current_day)} - {int(previous_day)}\n"
+            f"Показники Ніч:    {int(current_night)} - {int(previous_night)}\n"
+            f"Спожито Пік:    {int(consumption_peak)} кВт\n"
+            f"Спожито День:    {int(consumption_day)} кВт\n"
+            f"Спожито Ніч:    {int(consumption_night)} кВт\n"
+            f"Тариф Пік:    {tariff_peak:.2f} грн/кВт\n"
+            f"Тариф День:    {tariff_day:.2f} грн/кВт\n"
+            f"Тариф Ніч:    {tariff_night:.2f} грн/кВт\n"
+            f"{'-' * 47}\n"
+            f"Загальна вартість:    {total_cost:.2f} грн"
         )
         await message.answer(bill_text)
         await state.clear()
@@ -901,25 +912,29 @@ async def process_gas_previous(message: types.Message, state: FSMContext):
             addr_obj = result_addr.scalars().first()
 
         if addr_obj:
-            city = addr_obj.city or ""
+            city = addr_obj.city
             street = addr_obj.street or ""
             house = addr_obj.house or ""
+            apartment = addr_obj.apartment or ""
         else:
-            city, street, house = "", "", ""
+            city, street, house, apartment = "", "", "", ""
 
         # Формування рахунку з округленням числових значень до 2-х десяткових
         bill_text = (
-            f"Дата:                 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"Телефон:                     {data.get('phone')}\n"
-            f"Адреса: {city}, {street}, {house}\n"
-            f"Послуга:            Газ та Газопостачання\n"
-            f"Показники:                {current} - {previous}\n"
-            f"Спожито:                          {gas_consumption} м³\n"
-            f"Тариф Газ: {' ' * 18} {tariff_gas} грн/м³\n"
-            f"Тариф Газопостачання: {' ' * 6} {tariff_supply} грн/м³\n"
-            f"Вартість Газ: {' ' * 14} {cost_gas} грн\n"
-            f"Вартість Газопостачання: {' ' * 4} {cost_supply} грн\n"
-            f"Загальна вартість: {' ' * 9} {total_cost} грн"
+            f"{'-' * 47}\n"
+            f"Дата:    {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Телефон:    +{data.get('phone')}\n"
+            f"Адреса:    {city}, {street}, {house}, {apartment}\n"
+            f"{'-' * 47}\n"
+            f"Послуга:    Газ та Газопостачання\n"
+            f"Показники:    {int(current)} - {int(previous)}\n"
+            f"Спожито:    {int(gas_consumption)} м³\n"
+            f"Тариф Газ:    {tariff_gas:.2f} грн/м³\n"
+            f"Тариф Газопостачання:    {tariff_supply:.2f} грн/м³\n"
+            f"Вартість Газ:    {cost_gas:.2f} грн\n"
+            f"Вартість Газопостачання:    {cost_supply:.2f} грн\n"
+            f"{'-' * 47}\n"
+            f"Загальна вартість:    {total_cost:.2f} грн"
         )
         await message.answer(bill_text)
         await state.clear()
@@ -982,19 +997,23 @@ async def process_trash_bins(message: types.Message, state: FSMContext):
             city = addr_obj.city or ""
             street = addr_obj.street or ""
             house = addr_obj.house or ""
+            apartment = addr_obj.apartment or ""
         else:
-            city, street, house = "", "", ""
+            city, street, house, apartment = "", "", "", ""
 
         # Формування рахунку з округленням числових значень до 2-х десяткових
         bill_text = (
-            f"Дата:                 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"Телефон:                     {data.get('phone')}\n"
-            f"Адреса: {city}, {street}, {house}\n"
-            f"Послуга: {' ' * 19} Вивіз сміття\n"
-            f"Відвантаження: {' ' * 23} {unloads}\n"
-            f"Сміттєві баки: {' ' * 24} {bins}\n"
-            f"Тариф: {' ' * 26} {tariff} грн\n"
-            f"Загальна вартість: {' ' * 9} {total_cost} грн"
+            f"{'-' * 47}\n"
+            f"Дата:    {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Телефон:    +{data.get('phone')}\n"
+            f"Адреса: {city}, {street}, {house}, {apartment}\n"
+            f"{'-' * 47}\n"
+            f"Послуга:    Вивіз сміття\n"
+            f"Відвантаження:    {int(unloads)}\n"
+            f"Сміттєві баки:    {int(bins)}\n"
+            f"Тариф: {tariff:.2f} грн\n"
+            f"{'-' * 47}\n"
+            f"Загальна вартість:    {total_cost:.2f} грн"
         )
         await message.answer(bill_text)
         await state.clear()
