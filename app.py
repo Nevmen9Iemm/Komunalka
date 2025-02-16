@@ -452,18 +452,6 @@ async def process_service(callback: types.CallbackQuery, state: FSMContext):
                     await bot.send_message(callback.from_user.id, "Рахунки за вибраною адресою не знайдено.")
             await state.set_state(Form.select_address)
 
-        # elif service == "bills":
-        #     async with async_session() as session:
-        #         data = await state.get_data()
-        #         stmt = select(Address).where(Address.user_id == data["user_id"])
-        #         result = await session.execute(stmt)
-        #         addresses = result.scalars().all()
-        #         keyboard = InlineKeyboardMarkup(inline_keyboard=[], row_width=1)
-        #         for addr in addresses:
-        #             addr_text = f"{addr.city}, {addr.street}, {addr.house}"
-        #             keyboard.inline_keyboard.append([InlineKeyboardButton(text=addr_text, callback_data=f"bill_address_{addr.id}")])
-        #         await bot.send_message(callback.from_user.id, "Оберіть адресу для перегляду рахунків:", reply_markup=keyboard)
-        #     await state.set_state(Form.select_address)
     except Exception as e:
         logging.error(f"Помилка у process_service: {e}")
         await bot.send_message(callback.from_user.id, "Сталася помилка. Спробуйте пізніше.")
