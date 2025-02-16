@@ -15,6 +15,7 @@ from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, select
 
 import config  # Файл config.py повинен містити змінну TG_TOKEN
+from keyboards.inline import electricity_keyboards
 
 # Налаштування логування
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -419,13 +420,7 @@ async def process_service(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(service=service)
         await bot.answer_callback_query(callback.id)
         if service == "electricity":
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="Однозонний", callback_data="elec_one")],
-                    [InlineKeyboardButton(text="Двозонний", callback_data="elec_two")],
-                    [InlineKeyboardButton(text="Трьохзонний", callback_data="elec_three")]
-                ], row_width=1)
-
+            keyboard = electricity_keyboards()
             await bot.send_message(callback.from_user.id, "Оберіть тип лічильника для електроенергії:", reply_markup=keyboard)
             await state.set_state(Form.electricity_type)
         elif service == "gas":
