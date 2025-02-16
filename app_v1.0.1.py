@@ -475,6 +475,7 @@ async def process_bill_address(callback: types.CallbackQuery, state: FSMContext)
         data = await state.get_data()
         logging.debug(f"FSM data: {data}")
 
+        # Переконайтеся, що address_id присутній
         if "address_id" not in data:
             raise ValueError("address_id не знайдено у FSM")
 
@@ -484,11 +485,13 @@ async def process_bill_address(callback: types.CallbackQuery, state: FSMContext)
             result = await session.execute(stmt)
             bills = result.scalars().all()
 
+            # Створюємо клавіатуру із пустим списком рядків
             keyboard = InlineKeyboardMarkup(inline_keyboard=[])
             # Нумеруємо рахунки, починаючи з 1
             for idx, bill in enumerate(bills, start=1):
                 created_at_str = bill.created_at.strftime("%Y-%m-%d %H:%M:%S") if bill.created_at else "N/A"
 
+                # Визначаємо загальну вартість залежно від типу послуги
                 if bill.service == "Електроенергія":
                     total_cost = bill.total_cost or bill.total_cost_2 or bill.total_cost_3
                 elif bill.service == "Газ та Газопостачання":
@@ -498,6 +501,7 @@ async def process_bill_address(callback: types.CallbackQuery, state: FSMContext)
                 else:
                     total_cost = 0
 
+                # Округлюємо вартість до 2-х десяткових
                 total_cost_str = f"{total_cost:.2f}"
                 bill_text = f"{idx}. {created_at_str}, {bill.service}, {total_cost_str} грн"
                 keyboard.inline_keyboard.append(
