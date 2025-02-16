@@ -1,6 +1,11 @@
+from typing import Any, Coroutine
+
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-def get_menu_keyboard(menu_state: str) -> InlineKeyboardMarkup:
+from app import bot
+
+
+def get_menu_keyboard(menu_state: str) -> InlineKeyboardMarkup | Coroutine[Any, Any, InlineKeyboardMarkup]:
     if menu_state == "process_select_address":
         return InlineKeyboardMarkup(
             inline_keyboard=[
@@ -55,13 +60,20 @@ def get_menu_keyboard(menu_state: str) -> InlineKeyboardMarkup:
     else:
         return default_keyboard()
 
-def default_keyboard() -> InlineKeyboardMarkup:
+async def default_keyboard(user_id: int = None) -> InlineKeyboardMarkup:
     """Повертає базову клавіатуру з кнопками, які відображаються у кожному стані."""
-    return InlineKeyboardMarkup(
+    default_kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Назад", callback_data="default_back")]
+            [InlineKeyboardButton(text="Start", callback_data="start_")]
         ]
     )
+    if user_id is None:
+        user_id = await bot.get_me()
+        return default_kb
+
+    else:
+        return default_kb
+
 
 def merge_keyboards(specific: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
     """Об’єднує специфічну клавіатуру із базовою клавіатурою."""
