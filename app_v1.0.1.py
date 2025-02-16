@@ -15,7 +15,7 @@ from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, select
 
 import config  # Файл config.py повинен містити змінну TG_TOKEN
-from keyboards.inline import electricity_keyboards
+from keyboards.inline import electricity_keyboards, menu_keyboards
 
 # Налаштування логування
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -343,6 +343,12 @@ async def process_apartment(message: types.Message, state: FSMContext):
 #     logging.debug(f"Default handler: message.text = {message.text}, current_state = {current_state}")
 
 # -------------------- Callback Query Handlers --------------------
+@dp.callback_query(F.data == "start_")
+async def callback_start(callback: types.CallbackQuery, state: FSMContext):
+    await bot.answer_callback_query(callback.id)  # відповідаємо на callback
+    # Викликаємо функцію cmd_start, передаючи callback.message та state
+    await cmd_start(callback.message, state, user_id=callback.from_user.id)
+
 
 # Callback для вибору існуючої адреси чи додавання нової
 @dp.callback_query(F.data.startswith("select_address_"))
@@ -371,21 +377,10 @@ async def process_select_address(callback: types.CallbackQuery, state: FSMContex
 
         data = await state.get_data()
         address_id = data.get("address_id")
+        user_id = data.get("user_id")
 
         # Формуємо клавіатуру для вибору комунальних послуг
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[])
-        keyboard.inline_keyboard.append(
-            [InlineKeyboardButton(text="Електроенергія", callback_data="service_electricity")]
-        )
-        keyboard.inline_keyboard.append(
-            [InlineKeyboardButton(text="Газ та Газопостачання", callback_data="service_gas")]
-        )
-        keyboard.inline_keyboard.append(
-            [InlineKeyboardButton(text="Вивіз сміття", callback_data="service_trash")]
-        )
-        keyboard.inline_keyboard.append(
-            [InlineKeyboardButton(text="Рахунки", callback_data=f"bill_address_{address_id}")]
-        )
+        keyboard = menu_keyboards(address_id=address_id, user_id=user_id)
 
         # Відправляємо повідомлення з отриманою адресою
         await bot.send_message(
