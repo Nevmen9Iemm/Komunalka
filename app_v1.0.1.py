@@ -20,7 +20,7 @@ import config  # Файл config.py повинен містити змінну T
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Асинхронне налаштування бази даних
-DATABASE_URL = "sqlite+aiosqlite:///komunalka1.1.db"
+DATABASE_URL = "sqlite+aiosqlite:///komunalka_v1.0.1.db"
 engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 Base = declarative_base()
@@ -342,25 +342,51 @@ async def process_apartment(message: types.Message, state: FSMContext):
 # -------------------- Callback Query Handlers --------------------
 
 # Callback для вибору існуючої адреси чи додавання нової
-@dp.callback_query(lambda c: c.data and c.data.startswith("select_address_"))
+@dp.callback_query(F.data.startswith("select_address_"))
 async def process_select_address(callback: types.CallbackQuery, state: FSMContext):
     logging.debug("Entered process_select_address handler")
     try:
         current_state = await state.get_state()
         if current_state != Form.address_confirm.state:
             return
+        # Отримуємо id адреси із callback data
         addr_id = int(callback.data.split("_")[-1])
         await state.update_data(address_id=addr_id)
         await bot.answer_callback_query(callback.id)
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-            [InlineKeyboardButton(text="Електроенергія", callback_data="service_electricity")],
-            [InlineKeyboardButton(text="Газ та Газопостачання", callback_data="service_gas")],
-            [InlineKeyboardButton(text="Вивіз сміття", callback_data="service_trash")],
-            [InlineKeyboardButton(text="Рахунки", callback_data="service_bills]")]
-            ], row_width=2
+
+        # Завантажуємо дані адреси з бази даних
+        async with async_session() as session:
+            stmt = select(Address).where(Address.id == addr_id)
+            result = await session.execute(stmt)
+            address = result.scalars().first()
+            if address:
+                full_address = f"{address.city}, {address.street}, {address.house}"
+                if address.apartment:
+                    full_address += f", кв. {address.apartment}"
+            else:
+                full_address = "невідома адреса"
+
+        # Формуємо клавіатуру для вибору комунальних послуг
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[])
+        keyboard.inline_keyboard.append(
+            [InlineKeyboardButton(text="Електроенергія", callback_data="service_electricity")]
         )
-        await bot.send_message(callback.from_user.id, "Оберіть комунальну послугу для адреси {}:", reply_markup=keyboard)
+        keyboard.inline_keyboard.append(
+            [InlineKeyboardButton(text="Газ та Газопостачання", callback_data="service_gas")]
+        )
+        keyboard.inline_keyboard.append(
+            [InlineKeyboardButton(text="Вивіз сміття", callback_data="service_trash")]
+        )
+        keyboard.inline_keyboard.append(
+            [InlineKeyboardButton(text="Рахунки", callback_data="service_bills")]
+        )
+
+        # Відправляємо повідомлення з отриманою адресою
+        await bot.send_message(
+            callback.from_user.id,
+            f"Оберіть комунальну послугу для адреси {full_address}:",
+            reply_markup=keyboard
+        )
         await state.set_state(Form.service)
     except Exception as e:
         logging.error(f"Помилка у process_select_address: {e}")

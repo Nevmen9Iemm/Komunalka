@@ -1,6 +1,7 @@
 .idea
 config.py
 komunalka.db
+komunalka_v1.0.1.db
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
