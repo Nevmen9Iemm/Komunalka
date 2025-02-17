@@ -698,21 +698,15 @@ async def process_bill_detail(callback: types.CallbackQuery, state: FSMContext):
         else:
             details += "Додаткових даних немає.\n"
 
-        await bot.send_message(callback.from_user.id, details)
-        await bot.answer_callback_query(callback.id)
+        await bot.edit_message_text(
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+            text=f"Ваше повідомлення з деталями рахунку\n\n{details}\n\nДля вибору адреси натисніть:",
+            reply_markup=start_keyboard()
+        )
     except Exception as e:
         logging.error(f"Помилка у process_bill_detail: {e}")
         await bot.send_message(callback.from_user.id, "Сталася помилка при завантаженні деталей рахунку.")
-
-    start_kb = start_keyboard()
-    await bot.edit_message_text(
-        chat_id=callback.message.chat.id,
-        message_id=callback.message.message_id,
-        text="Для вибору адреси натисніть:",
-        reply_markup=start_kb
-    )
-
-
 
 # -------------------- Решта Message Handlers --------------------
 
