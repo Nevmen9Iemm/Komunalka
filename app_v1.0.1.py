@@ -231,7 +231,7 @@ async def cmd_start(message: types.Message, state: FSMContext, user_id: int = No
                         await bot.edit_message_text(
                             chat_id=callback.message.chat.id,
                             message_id=callback.message.message_id,
-                            text="Оберіть вашу адресу:",
+                            text="Оберіть адресу:",
                             reply_markup=keyboard
                         )
                     else:
