@@ -1272,9 +1272,11 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    asyncio.run(main())
-
-
-if __name__ == '__main__':
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(main())
+    finally:
+        # Дозволяє коректно завершити асинхронні генератори
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.close()
 
