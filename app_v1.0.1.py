@@ -15,7 +15,7 @@ from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, select
 
 import config  # Файл config.py повинен містити змінну TG_TOKEN
-from keyboards.inline import electricity_keyboards, menu_keyboards, default_keyboard
+from keyboards.inline import electricity_keyboards, menu_keyboards, start_keyboard
 
 # Налаштування логування
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -177,15 +177,13 @@ dp = Dispatcher(storage=storage)
 
 
 @dp.message(Command("start"))
-async def cmd_start(message: types.Message, state: FSMContext, user_id: int = None):
-    # Тепер ви можете використовувати user_id всередині функції
+async def cmd_start(message: types.Message, state: FSMContext, user_id: int = None, callback: types.CallbackQuery = None):
     logging.debug(f"cmd_start отримав user_id: {user_id}")
-    # Отримуємо telegram id та ім'я користувача
-    telegram_id = message.from_user.id
-    user_name = f"{message.from_user.first_name} {message.from_user.last_name}" if message.from_user.last_name else message.from_user.first_name
+    telegram_id = user_id or message.from_user.id
+    user_name = (f"{message.from_user.first_name} {message.from_user.last_name}"
+                 if message.from_user.last_name else message.from_user.first_name)
     try:
         async with async_session() as session:
-            # Шукаємо користувача за telegram_id
             stmt = select(User).where(User.telegram_id == telegram_id)
             result = await session.execute(stmt)
             user = result.scalars().first()
@@ -193,10 +191,19 @@ async def cmd_start(message: types.Message, state: FSMContext, user_id: int = No
                 logging.debug("User not found, creating new record")
                 user = User(telegram_id=telegram_id, user_name=user_name)
                 session.add(user)
-                # Оновлюємо дані FSM
+                await session.commit()
                 await state.update_data(user_id=user.id, telegram_id=telegram_id, user_name=user_name)
-                # Повідомляємо користувача та переходимо до наступного стану
-                await message.answer("Ваші дані записано.\nВведіть адресу.\nВведіть місто:")
+                # Якщо користувач не знайдений, переходимо до введення нової адреси
+                if callback:
+                    # Редагуємо існуюче повідомлення, якщо воно є
+                    await bot.edit_message_text(
+                        chat_id=callback.message.chat.id,
+                        message_id=callback.message.message_id,
+                        text="Ваші дані записано. Введіть адресу.\nВведіть місто:",
+                        reply_markup=None
+                    )
+                else:
+                    await message.answer("Ваші дані записано. Введіть адресу.\nВведіть місто:")
                 await state.set_state(Form.city)
             else:
                 logging.debug("User found")
@@ -212,29 +219,107 @@ async def cmd_start(message: types.Message, state: FSMContext, user_id: int = No
                         addr_text = f"{addr.city}, {addr.street}, {addr.house}"
                         if addr.apartment:
                             addr_text += f", кв. {addr.apartment}"
-                        # Додаємо перелік адрес у заговолок
                         # text += addr_text + "\n"
-                        # Додаємо кожну кнопку як окремий рядок (список кнопок)
                         keyboard.inline_keyboard.append(
                             [InlineKeyboardButton(text=addr_text, callback_data=f"select_address_{addr.id}")]
                         )
                     keyboard.inline_keyboard.append(
                         [InlineKeyboardButton(text="Додати нову адресу", callback_data="add_new_address")]
                     )
-                    await message.answer(text, reply_markup=keyboard)
+                    # Оновлюємо існуюче повідомлення, якщо callback передано, інакше відправляємо нове повідомлення
+                    if callback:
+                        await bot.edit_message_text(
+                            chat_id=callback.message.chat.id,
+                            message_id=callback.message.message_id,
+                            text="Оберіть вашу адресу:",
+                            reply_markup=keyboard
+                        )
+                    else:
+                        await message.answer(text, reply_markup=keyboard)
                     await state.set_state(Form.address_confirm)
                 else:
                     logging.debug("Address not found")
-                    await message.answer("Адреси не знайдено. Введіть адресу.\nВведіть місто:")
+                    if callback:
+                        await bot.edit_message_text(
+                            chat_id=callback.message.chat.id,
+                            message_id=callback.message.message_id,
+                            text="Адреси не знайдено. Введіть адресу.\nВведіть місто:",
+                            reply_markup=None
+                        )
+                    else:
+                        await message.answer("Адреси не знайдено. Введіть адресу.\nВведіть місто:")
                     await state.set_state(Form.city)
-
     except Exception as e:
         logging.error(f"Error in cmd_start: {e}")
-        await message.answer("Сталася помилка. Спробуйте пізніше.")
+        if callback:
+            await bot.edit_message_text(
+                chat_id=callback.message.chat.id,
+                message_id=callback.message.message_id,
+                text="Сталася помилка. Спробуйте пізніше.",
+                reply_markup=None
+            )
+        else:
+            await message.answer("Сталася помилка. Спробуйте пізніше.")
+
+
+# @dp.message(Command("start"))
+# async def cmd_start(message: types.Message, state: FSMContext, user_id: int = None):
+#     # Тепер ви можете використовувати user_id всередині функції
+#     logging.debug(f"cmd_start отримав user_id: {user_id}")
+#     # Отримуємо telegram id та ім'я користувача
+#     telegram_id = user_id or message.from_user.id
+#     user_name = f"{message.from_user.first_name} {message.from_user.last_name}" if message.from_user.last_name else message.from_user.first_name
+#     try:
+#         async with async_session() as session:
+#             # Шукаємо користувача за telegram_id
+#             stmt = select(User).where(User.telegram_id == telegram_id)
+#             result = await session.execute(stmt)
+#             user = result.scalars().first()
+#             if not user:
+#                 logging.debug("User not found, creating new record")
+#                 user = User(telegram_id=telegram_id, user_name=user_name)
+#                 session.add(user)
+#                 # Оновлюємо дані FSM
+#                 await state.update_data(user_id=user.id, telegram_id=telegram_id, user_name=user_name)
+#                 # Повідомляємо користувача та переходимо до наступного стану
+#                 await message.answer("Ваші дані записано.\nВведіть адресу.\nВведіть місто:")
+#                 await state.set_state(Form.city)
+#             else:
+#                 logging.debug("User found")
+#                 await state.update_data(user_id=user.id, telegram_id=telegram_id, user_name=user_name)
+#                 stmt = select(Address).where(Address.user_id == user.id)
+#                 result = await session.execute(stmt)
+#                 addresses = result.scalars().all()
+#                 if addresses:
+#                     logging.debug("Address found")
+#                     text = "Ваші збережені адреси:\n"
+#                     keyboard = InlineKeyboardMarkup(inline_keyboard=[])
+#                     for addr in addresses:
+#                         addr_text = f"{addr.city}, {addr.street}, {addr.house}"
+#                         if addr.apartment:
+#                             addr_text += f", кв. {addr.apartment}"
+#                         # Додаємо перелік адрес у заговолок
+#                         # text += addr_text + "\n"
+#                         # Додаємо кожну кнопку як окремий рядок (список кнопок)
+#                         keyboard.inline_keyboard.append(
+#                             [InlineKeyboardButton(text=addr_text, callback_data=f"select_address_{addr.id}")]
+#                         )
+#                     keyboard.inline_keyboard.append(
+#                         [InlineKeyboardButton(text="Додати нову адресу", callback_data="add_new_address")]
+#                     )
+#                     await message.answer(text, reply_markup=keyboard)
+#                     await state.set_state(Form.address_confirm)
+#                 else:
+#                     logging.debug("Address not found")
+#                     await message.answer("Адреси не знайдено. Введіть адресу.\nВведіть місто:")
+#                     await state.set_state(Form.city)
+#
+#     except Exception as e:
+#         logging.error(f"Error in cmd_start: {e}")
+#         await message.answer("Сталася помилка. Спробуйте пізніше.")
 
 
 # -------------------- Message Handlers --------------------
-# Для кожного message handler використовуємо фільтр F для перевірки стану
 # Обробка введення адреси
 @dp.message(F.text, StateFilter(Form.city))
 async def process_city(message: types.Message, state: FSMContext):
@@ -344,6 +429,12 @@ async def process_apartment(message: types.Message, state: FSMContext):
 #     logging.debug(f"Default handler: message.text = {message.text}, current_state = {current_state}")
 
 # -------------------- Callback Query Handlers --------------------
+@dp.callback_query(F.data == "start_")
+async def callback_start(callback: types.CallbackQuery, state: FSMContext):
+    await bot.answer_callback_query(callback.id)  # повідомляємо Telegram, що callback оброблено
+    # Викликаємо функцію cmd_start, передаючи повідомлення з callback та user_id, отриманий із callback.from_user.id
+    await cmd_start(callback.message, state, user_id=callback.from_user.id)
+
 # Callback для вибору існуючої адреси чи додавання нової
 @dp.callback_query(F.data.startswith("select_address_"))
 async def process_select_address(callback: types.CallbackQuery, state: FSMContext):
@@ -612,6 +703,15 @@ async def process_bill_detail(callback: types.CallbackQuery, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_bill_detail: {e}")
         await bot.send_message(callback.from_user.id, "Сталася помилка при завантаженні деталей рахунку.")
+
+    start_kb = start_keyboard()
+    await bot.edit_message_text(
+        chat_id=callback.message.chat.id,
+        message_id=callback.message.message_id,
+        text="Для вибору адреси натисніть:",
+        reply_markup=start_kb
+    )
+
 
 
 # -------------------- Решта Message Handlers --------------------

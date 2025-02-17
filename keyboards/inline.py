@@ -58,26 +58,18 @@ def get_menu_keyboard(menu_state: str) -> InlineKeyboardMarkup | Coroutine[Any, 
     elif menu_state == "process_bill_confirm":
         return menu_keyboards()
     else:
-        return default_keyboard()
+        return start_keyboard()
 
-async def default_keyboard(user_id: int = None) -> InlineKeyboardMarkup:
-    """Повертає базову клавіатуру з кнопками, які відображаються у кожному стані."""
-    default_kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Start", callback_data="start_")]
-        ]
-    )
-    if user_id is None:
-        user_id = await bot.get_me()
-        return default_kb
 
-    else:
-        return default_kb
+def start_keyboard() -> InlineKeyboardMarkup:
+    start_button = InlineKeyboardButton(text="Start", callback_data="start_")
+    start_kb = InlineKeyboardMarkup(inline_keyboard=[[start_button]])
+    return start_kb
 
 
 def merge_keyboards(specific: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
     """Об’єднує специфічну клавіатуру із базовою клавіатурою."""
-    default_kb = default_keyboard()
+    default_kb = start_keyboard()
     # Об’єднуємо рядки кнопок: спочатку специфічні, потім базові
     merged_keyboard = InlineKeyboardMarkup(
         inline_keyboard=specific.inline_keyboard + default_kb.inline_keyboard
