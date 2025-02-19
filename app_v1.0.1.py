@@ -427,12 +427,16 @@ async def process_select_address(callback: types.CallbackQuery, state: FSMContex
 async def process_add_new_address(callback: types.CallbackQuery, state: FSMContext):
     logging.debug("Entered process_add_new_address handler")
     try:
-        kb = electricity_keyboards()
-        await callback.message.edit_reply_markup(reply_markup=kb)
         await bot.answer_callback_query(callback.id)
         await bot.answer_callback_query(callback.id)
-        await bot.send_message(callback.from_user.id, "Введіть місто:")
-        await state.set_state(Form.city)
+        await bot.edit_message_text(
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+            text="Введіть місто або натисніть \"Start\" для вибору адреси:",
+            reply_markup=start_keyboard()
+        )
+        #        send_message(callback.from_user.id, "Введіть місто:"))
+        # await state.set_state(Form.city)
     except Exception as e:
         logging.error(f"Помилка у process_add_new_address: {e}")
         await bot.send_message(callback.from_user.id, "Сталася помилка. Спробуйте пізніше.")
@@ -447,11 +451,11 @@ async def process_service(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(service=service)
         await bot.answer_callback_query(callback.id)
         if service == "electricity":
-            kb = electricity_keyboards()
+            kb = merge_keyboards(electricity_keyboards())
             await bot.edit_message_text(
                 chat_id=callback.message.chat.id,
                 message_id=callback.message.message_id,
-                text="Оберіть тип лічильника для електроенергії:",
+                text="Оберіть тип лічильника для електроенергії або натисніть \"Start\" для вибору адреси:",
                 reply_markup=kb
             )
             await state.set_state(Form.electricity_type)
@@ -459,21 +463,23 @@ async def process_service(callback: types.CallbackQuery, state: FSMContext):
             await bot.edit_message_text(
                 chat_id=callback.message.chat.id,
                 message_id=callback.message.message_id,
-                text="Введіть поточні показники лічильника газу:",
+                text="Введіть поточні показники лічильника газу або натисніть \"Start\" для вибору адреси:",
+                reply_markup=start_keyboard()
             )
             await state.set_state(Form.gas_current)
         elif service == "trash":
             await bot.edit_message_text(
                 chat_id=callback.message.chat.id,
                 message_id=callback.message.message_id,
-                text="Введіть кількість відвантажень:",
+                text="Введіть кількість відвантажень або натисніть \"Start\" для вибору адреси:",
+                reply_markup=start_keyboard()
             )
             await state.set_state(Form.trash_unloads)
         elif service == "bills":
             await bot.edit_message_text(
                 chat_id=callback.message.chat.id,
                 message_id=callback.message.message_id,
-                text="Ваші рахунки:",
+                text="Ваші рахунки або натисніть \"Start\" для вибору адреси:",
                 reply_markup=start_keyboard()
             )
             await state.set_state(Form.bill_address)
@@ -554,7 +560,7 @@ async def process_bill_address(callback: types.CallbackQuery, state: FSMContext)
                 await bot.edit_message_text(
                     chat_id=callback.message.chat.id,
                     message_id=callback.message.message_id,
-                    text="Ваші збережені рахунки комунальних послуг:",
+                    text="Ваші збережені рахунки комунальних послуг або натисніть \"Start\" для вибору адреси:",
                     reply_markup=specific_kb
                 )
 
@@ -640,7 +646,7 @@ async def process_bill_detail(callback: types.CallbackQuery, state: FSMContext):
         await bot.edit_message_text(
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
-            text=f"Ваше повідомлення з деталями рахунку\n\n{details}\n\nДля вибору адреси натисніть:",
+            text=f"Ваш детальний рахунок\n\n{details}\n\nДля вибору адреси натисніть:",
             reply_markup=start_keyboard()
         )
     except Exception as e:
