@@ -420,7 +420,12 @@ async def process_select_address(callback: types.CallbackQuery, state: FSMContex
         await state.set_state(Form.service)
     except Exception as e:
         logging.error(f"Помилка у process_select_address: {e}")
-        await bot.send_message(callback.from_user.id, "Сталася помилка. Спробуйте пізніше.")
+        await bot.edit_message_text(
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"Start\" для продовження",
+            reply_markup=start_keyboard()
+        )
 
 
 @dp.callback_query(lambda c: c.data == "add_new_address")
@@ -433,13 +438,16 @@ async def process_add_new_address(callback: types.CallbackQuery, state: FSMConte
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
             text="Введіть місто або натисніть \"Start\" для вибору адреси:",
-            reply_markup=start_keyboard()
+            reply_markup=None
         )
-        #        send_message(callback.from_user.id, "Введіть місто:"))
-        # await state.set_state(Form.city)
     except Exception as e:
         logging.error(f"Помилка у process_add_new_address: {e}")
-        await bot.send_message(callback.from_user.id, "Сталася помилка. Спробуйте пізніше.")
+        await bot.edit_message_text(
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"Start\" для продовження",
+            reply_markup=start_keyboard()
+        )
 
 
 # Обробка вибору послуги
@@ -463,16 +471,16 @@ async def process_service(callback: types.CallbackQuery, state: FSMContext):
             await bot.edit_message_text(
                 chat_id=callback.message.chat.id,
                 message_id=callback.message.message_id,
-                text="Введіть поточні показники лічильника газу або натисніть \"Start\" для вибору адреси:",
-                reply_markup=start_keyboard()
+                text="Введіть поточні показники лічильника газу:",
+                reply_markup=None
             )
             await state.set_state(Form.gas_current)
         elif service == "trash":
             await bot.edit_message_text(
                 chat_id=callback.message.chat.id,
                 message_id=callback.message.message_id,
-                text="Введіть кількість відвантажень або натисніть \"Start\" для вибору адреси:",
-                reply_markup=start_keyboard()
+                text="Введіть кількість відвантажень:",
+                reply_markup=None
             )
             await state.set_state(Form.trash_unloads)
         elif service == "bills":
@@ -486,7 +494,12 @@ async def process_service(callback: types.CallbackQuery, state: FSMContext):
 
     except Exception as e:
         logging.error(f"Помилка у process_service: {e}")
-        await bot.send_message(callback.from_user.id, "Сталася помилка. Спробуйте пізніше.")
+        await bot.edit_message_text(
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"Start\" для продовження",
+            reply_markup=start_keyboard()
+        )
 
 
 # Обробка вибору типу лічильника для електроенергії
@@ -511,7 +524,12 @@ async def process_electricity_type(callback: types.CallbackQuery, state: FSMCont
             await state.set_state(Form.elec_three_current_peak)
     except Exception as e:
         logging.error(f"Помилка у process_electricity_type: {e}")
-        await bot.send_message(callback.from_user.id, "Сталася помилка. Спробуйте пізніше.")
+        await bot.edit_message_text(
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"Start\" для продовження",
+            reply_markup=start_keyboard()
+        )
 
 
 # ----------------- Перегляд рахунків -----------------
@@ -569,7 +587,12 @@ async def process_bill_address(callback: types.CallbackQuery, state: FSMContext)
         await state.clear()
     except Exception as e:
         logging.error(f"Помилка у process_bill_address: {e}")
-        await bot.send_message(callback.from_user.id, "Сталася помилка. Спробуйте пізніше.")
+        await bot.edit_message_text(
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"Start\" для продовження",
+            reply_markup=start_keyboard()
+        )
 
 
 @dp.callback_query(F.data.startswith("bill_detail_"))
@@ -651,7 +674,12 @@ async def process_bill_detail(callback: types.CallbackQuery, state: FSMContext):
         )
     except Exception as e:
         logging.error(f"Помилка у process_bill_detail: {e}")
-        await bot.send_message(callback.from_user.id, "Сталася помилка при завантаженні деталей рахунку.")
+        await bot.edit_message_text(
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"Start\" для продовження",
+            reply_markup=start_keyboard()
+        )
 
 # -------------------- Решта Message Handlers --------------------
 
@@ -668,6 +696,7 @@ async def process_elec_one_current(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_elec_one_current: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_one_previous))
@@ -735,6 +764,7 @@ async def process_elec_one_previous(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_elec_two_previous_night: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 # ----------------- Електроенергія: Двозонний -----------------
@@ -750,6 +780,7 @@ async def process_elec_two_current_day(message: types.Message, state: FSMContext
     except Exception as e:
         logging.error(f"Помилка у process_elec_two_current_day: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_two_current_night))
@@ -764,6 +795,7 @@ async def process_elec_two_current_night(message: types.Message, state: FSMConte
     except Exception as e:
         logging.error(f"Помилка у process_elec_two_current_night: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_two_previous_day))
@@ -778,6 +810,7 @@ async def process_elec_two_previous_day(message: types.Message, state: FSMContex
     except Exception as e:
         logging.error(f"Помилка у process_elec_two_previous_day: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_two_previous_night))
@@ -860,6 +893,7 @@ async def process_elec_two_previous_night(message: types.Message, state: FSMCont
     except Exception as e:
         logging.error(f"Помилка у process_elec_two_previous_night: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 # ----------------- Електроенергія: Трьохзонний -----------------
@@ -875,6 +909,7 @@ async def process_elec_three_current_peak(message: types.Message, state: FSMCont
     except Exception as e:
         logging.error(f"Помилка у process_elec_three_current_peak: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_three_current_day))
@@ -889,6 +924,7 @@ async def process_elec_three_current_day(message: types.Message, state: FSMConte
     except Exception as e:
         logging.error(f"Помилка у process_elec_three_current_day: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_three_current_night))
@@ -903,6 +939,7 @@ async def process_elec_three_current_night(message: types.Message, state: FSMCon
     except Exception as e:
         logging.error(f"Помилка у process_elec_three_current_night: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_three_previous_peak))
@@ -917,6 +954,7 @@ async def process_elec_three_previous_peak(message: types.Message, state: FSMCon
     except Exception as e:
         logging.error(f"Помилка у process_elec_three_previous_peak: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_three_previous_day))
@@ -931,6 +969,7 @@ async def process_elec_three_previous_day(message: types.Message, state: FSMCont
     except Exception as e:
         logging.error(f"Помилка у process_elec_three_previous_day: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_three_previous_night))
@@ -1026,6 +1065,7 @@ async def process_elec_three_previous_night(message: types.Message, state: FSMCo
     except Exception as e:
         logging.error(f"Помилка у process_elec_three_previous_night: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 # ----------------- Газ та Газопостачання -----------------
@@ -1041,6 +1081,7 @@ async def process_gas_current(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_gas_current: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.gas_previous))
@@ -1116,7 +1157,7 @@ async def process_gas_previous(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_gas_previous: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-
+        start_keyboard()
 
 # ----------------- Вивіз сміття -----------------
 @dp.message(F.text, StateFilter(Form.trash_unloads))
@@ -1131,6 +1172,7 @@ async def process_trash_unloads(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_trash_unloads: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.trash_bins))
@@ -1198,6 +1240,7 @@ async def process_trash_bins(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_trash_bins: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
+        start_keyboard()
 
 
 # Функція, що виконується при старті: ініціалізація БД та очищення старих рахунків
