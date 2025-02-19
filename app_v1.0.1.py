@@ -55,35 +55,35 @@ class Bill(Base):
     service = Column(String)  # "Електроенергія", "Газ та Газопостачання", "Вивіз сміття"
     created_at = Column(DateTime, default=datetime.datetime.now)
     # Однозонна електроенергія
-    current = Column(Float, nullable=True)
-    previous = Column(Float, nullable=True)
-    consumption = Column(Float, nullable=True)
+    current = Column(Integer, nullable=True)
+    previous = Column(Integer, nullable=True)
+    consumption = Column(Integer, nullable=True)
     tariff = Column(Float, nullable=True)
     total_cost = Column(Float, nullable=True)
     # Двозонна електроенергія (поля із суфіксом _2)
-    current_day_2 = Column(Float, nullable=True)
-    current_night_2 = Column(Float, nullable=True)
-    previous_day_2 = Column(Float, nullable=True)
-    previous_night_2 = Column(Float, nullable=True)
-    consumption_day_2 = Column(Float, nullable=True)
-    consumption_night_2 = Column(Float, nullable=True)
-    total_consumption_2 = Column(Float, nullable=True)
+    current_day_2 = Column(Integer, nullable=True)
+    current_night_2 = Column(Integer, nullable=True)
+    previous_day_2 = Column(Integer, nullable=True)
+    previous_night_2 = Column(Integer, nullable=True)
+    consumption_day_2 = Column(Integer, nullable=True)
+    consumption_night_2 = Column(Integer, nullable=True)
+    total_consumption_2 = Column(Integer, nullable=True)
     tariff_day_2 = Column(Float, nullable=True)
     tariff_night_2 = Column(Float, nullable=True)
     cost_day_2 = Column(Float, nullable=True)
     cost_night_2 = Column(Float, nullable=True)
     total_cost_2 = Column(Float, nullable=True)
     # Трьохзонна електроенергія (поля із суфіксом _3)
-    current_peak = Column(Float, nullable=True)
-    previous_peak = Column(Float, nullable=True)
-    consumption_peak = Column(Float, nullable=True)
-    current_day_3 = Column(Float, nullable=True)
-    previous_day_3 = Column(Float, nullable=True)
-    consumption_day_3 = Column(Float, nullable=True)
-    current_night_3 = Column(Float, nullable=True)
-    previous_night_3 = Column(Float, nullable=True)
-    consumption_night_3 = Column(Float, nullable=True)
-    total_consumption_3 = Column(Float, nullable=True)
+    current_peak = Column(Integer, nullable=True)
+    previous_peak = Column(Integer, nullable=True)
+    consumption_peak = Column(Integer, nullable=True)
+    current_day_3 = Column(Integer, nullable=True)
+    previous_day_3 = Column(Integer, nullable=True)
+    consumption_day_3 = Column(Integer, nullable=True)
+    current_night_3 = Column(Integer, nullable=True)
+    previous_night_3 = Column(Integer, nullable=True)
+    consumption_night_3 = Column(Integer, nullable=True)
+    total_consumption_3 = Column(Integer, nullable=True)
     tariff_peak = Column(Float, nullable=True)
     tariff_day_3 = Column(Float, nullable=True)
     tariff_night_3 = Column(Float, nullable=True)
@@ -92,9 +92,9 @@ class Bill(Base):
     cost_night_3 = Column(Float, nullable=True)
     total_cost_3 = Column(Float, nullable=True)
     # Газ та Газопостачання
-    gas_current = Column(Float, nullable=True)
-    gas_previous = Column(Float, nullable=True)
-    gas_consumption = Column(Float, nullable=True)
+    gas_current = Column(Integer, nullable=True)
+    gas_previous = Column(Integer, nullable=True)
+    gas_consumption = Column(Integer, nullable=True)
     tariff_gas = Column(Float, nullable=True)
     tariff_gas_supply = Column(Float, nullable=True)
     cost_gas = Column(Float, nullable=True)
@@ -595,33 +595,33 @@ async def process_bill_detail(callback: types.CallbackQuery, state: FSMContext):
         if bill.service == "Електроенергія":
             if bill.total_cost is not None:
                 details += "Тип: Однозонний\n"
-                details += f"Поточні показники: {bill.current}\n"
-                details += f"Попередні показники: {bill.previous}\n"
-                details += f"Спожито: {bill.consumption}\n"
+                details += f"Поточні показники: {int(bill.current)}\n"
+                details += f"Попередні показники: {int(bill.previous)}\n"
+                details += f"Спожито: {int(bill.consumption)}\n"
                 details += f"Тариф: {bill.tariff}\n"
                 details += f"Загальна вартість: {bill.total_cost:.2f} грн\n"
             elif bill.total_cost_2 is not None:
                 details += "Тип: Двозонний\n"
-                details += f"Поточні показники (День): {bill.current_day_2}\n"
-                details += f"Попередні показники (День): {bill.previous_day_2}\n"
-                details += f"Поточні показники (Ніч): {bill.current_night_2}\n"
-                details += f"Попередні показники (Ніч): {bill.previous_night_2}\n"
-                details += f"Спожито (День): {bill.consumption_day_2}\n"
-                details += f"Спожито (Ніч): {bill.consumption_night_2}\n"
+                details += f"Поточні показники (День): {int(bill.current_day_2)}\n"
+                details += f"Попередні показники (День): {int(bill.previous_day_2)}\n"
+                details += f"Поточні показники (Ніч): {int(bill.current_night_2)}\n"
+                details += f"Попередні показники (Ніч): {int(bill.previous_night_2)}\n"
+                details += f"Спожито (День): {int(bill.consumption_day_2)}\n"
+                details += f"Спожито (Ніч): {int(bill.consumption_night_2)}\n"
                 details += f"Тариф (День): {bill.tariff_day_2}\n"
                 details += f"Тариф (Ніч): {bill.tariff_night_2}\n"
                 details += f"Загальна вартість: {bill.total_cost_2:.2f} грн\n"
             elif bill.total_cost_3 is not None:
                 details += "Тип: Трьохзонний\n"
-                details += f"Поточні показники (Пік): {bill.current_peak}\n"
-                details += f"Попередні показники (Пік): {bill.previous_peak}\n"
-                details += f"Поточні показники (День): {bill.current_day_3}\n"
-                details += f"Попередні показники (День): {bill.previous_day_3}\n"
-                details += f"Поточні показники (Ніч): {bill.current_night_3}\n"
-                details += f"Попередні показники (Ніч): {bill.previous_night_3}\n"
-                details += f"Спожито (Пік): {bill.consumption_peak}\n"
-                details += f"Спожито (День): {bill.consumption_day_3}\n"
-                details += f"Спожито (Ніч): {bill.consumption_night_3}\n"
+                details += f"Поточні показники (Пік): {int(bill.current_peak)}\n"
+                details += f"Попередні показники (Пік): {int(bill.previous_peak)}\n"
+                details += f"Поточні показники (День): {int(bill.current_day_3)}\n"
+                details += f"Попередні показники (День): {int(bill.previous_day_3)}\n"
+                details += f"Поточні показники (Ніч): {int(bill.current_night_3)}\n"
+                details += f"Попередні показники (Ніч): {int(bill.previous_night_3)}\n"
+                details += f"Спожито (Пік): {int(bill.consumption_peak)}\n"
+                details += f"Спожито (День): {int(bill.consumption_day_3)}\n"
+                details += f"Спожито (Ніч): {int(bill.consumption_night_3)}\n"
                 details += f"Тариф (Пік): {bill.tariff_peak}\n"
                 details += f"Тариф (День): {bill.tariff_day_3}\n"
                 details += f"Тариф (Ніч): {bill.tariff_night_3}\n"
@@ -629,15 +629,15 @@ async def process_bill_detail(callback: types.CallbackQuery, state: FSMContext):
             else:
                 details += "Дані по електроенергії відсутні.\n"
         elif bill.service == "Газ та Газопостачання":
-            details += f"Поточні показники: {bill.gas_current}\n"
-            details += f"Попередні показники: {bill.gas_previous}\n"
-            details += f"Спожито газу: {bill.gas_consumption}\n"
+            details += f"Поточні показники: {int(bill.gas_current)}\n"
+            details += f"Попередні показники: {int(bill.gas_previous)}\n"
+            details += f"Спожито газу: {int(bill.gas_consumption)}\n"
             details += f"Тариф газ: {bill.tariff_gas}\n"
             details += f"Тариф газопостачання: {bill.tariff_gas_supply}\n"
             details += f"Загальна вартість: {bill.total_cost_gas:.2f} грн\n"
         elif bill.service == "Вивіз сміття":
-            details += f"Кількість відвантажень: {bill.unloads}\n"
-            details += f"Кількість сміттєвих баків: {bill.bins}\n"
+            details += f"Кількість відвантажень: {int(bill.unloads)}\n"
+            details += f"Кількість сміттєвих баків: {int(bill.bins)}\n"
             details += f"Тариф: {bill.trash_tariff}\n"
             details += f"Загальна вартість: {bill.total_cost_trash:.2f} грн\n"
         else:
@@ -646,7 +646,7 @@ async def process_bill_detail(callback: types.CallbackQuery, state: FSMContext):
         await bot.edit_message_text(
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
-            text=f"Ваш детальний рахунок\n\n{details}\n\nДля вибору адреси натисніть:",
+            text=f"Ваш детальний рахунок:\n\n{details}\nДля вибору адреси натисніть:",
             reply_markup=start_keyboard()
         )
     except Exception as e:
