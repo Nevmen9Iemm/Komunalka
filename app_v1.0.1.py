@@ -535,8 +535,8 @@ async def process_bill_address(callback: types.CallbackQuery, state: FSMContext)
             # Створюємо клавіатуру із пустим списком рядків
             keyboard = InlineKeyboardMarkup(inline_keyboard=[])
             # Нумеруємо рахунки, починаючи з 1
-            for idx, bill in enumerate(bills, start=1):
-                created_at_str = bill.created_at.strftime("%Y-%m-%d %H:%M:%S") if bill.created_at else "N/A"
+            for bill in bills:
+                created_at_str = bill.created_at.strftime("%d-%m-%Y") if bill.created_at else "N/A"
 
                 # Визначаємо загальну вартість залежно від типу послуги
                 if bill.service == "Електроенергія":
@@ -550,7 +550,7 @@ async def process_bill_address(callback: types.CallbackQuery, state: FSMContext)
 
                 # Округлюємо вартість до 2-х десяткових
                 total_cost_str = f"{total_cost:.2f}"
-                bill_text = f"{idx}. {created_at_str}, {bill.service}, {total_cost_str} грн"
+                bill_text = f"{bill.id}. {created_at_str}, {bill.service}, {total_cost_str} грн"
                 keyboard.inline_keyboard.append(
                     [InlineKeyboardButton(text=bill_text, callback_data=f"bill_detail_{bill.id}")]
                 )
