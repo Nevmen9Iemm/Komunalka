@@ -590,7 +590,6 @@ async def process_bill_address(callback: types.CallbackQuery, state: FSMContext)
                     text="Рахунки за вибраною адресою не знайдено. Натисніть \"Start\" для вибору адреси:",
                     reply_markup=start_keyboard()
                 )
-                # await bot.send_message(callback.from_user.id, "Рахунки за вибраною адресою не знайдено.")
         await state.clear()
     except Exception as e:
         logging.error(f"Помилка у process_bill_address: {e}")
