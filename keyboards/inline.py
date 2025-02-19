@@ -1,8 +1,5 @@
 from typing import Any, Coroutine
-
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
-from app import bot
 
 
 def get_menu_keyboard(menu_state: str) -> InlineKeyboardMarkup | Coroutine[Any, Any, InlineKeyboardMarkup]:
@@ -76,13 +73,6 @@ def merge_keyboards(specific: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
     )
     return merged_keyboard
 
-# def add_address_keyboard() -> InlineKeyboardMarkup:
-#     add_address_kb = InlineKeyboardMarkup(
-#         inline_keyboard=[
-#             [InlineKeyboardButton(text="Додати нову адресу", callback_data="add_new_address")]
-#         ]
-#     )
-#     return add_address_kb
 
 def menu_keyboards(address_id: int = None, user_id: int = None) -> InlineKeyboardMarkup:
     """
