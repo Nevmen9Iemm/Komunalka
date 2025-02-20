@@ -15,7 +15,10 @@ from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, select
 
 import config  # Файл config.py повинен містити змінну TG_TOKEN
-from keyboards.inline import electricity_keyboards, menu_keyboards, start_keyboard, merge_keyboards
+from keyboards.inline import electricity_keyboards, start_keyboard, merge_keyboards, menu_keyboards
+from keyboards.reply import persistent_reply_keyboard
+
+
 
 # Налаштування логування
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -175,91 +178,156 @@ bot = Bot(token=config.TG_TOKEN, default=DefaultBotProperties(parse_mode="HTML")
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
+from aiogram.types import ReplyKeyboardRemove
+from keyboards.reply import persistent_reply_keyboard  # reply клавіатура з кнопкою "Розпочати"
+
 
 @dp.message(Command("start"))
-async def cmd_start(message: types.Message, state: FSMContext, user_id: int = None, callback: types.CallbackQuery = None):
-    logging.debug(f"cmd_start отримав user_id: {user_id}")
-    telegram_id = user_id or message.from_user.id
+async def cmd_start(message: types.Message, state: FSMContext):
+    # Відправляємо reply клавіатуру, яка завжди відображатиметься
+    await message.answer(text="Вітаю!!! 🇺🇦" ,reply_markup=persistent_reply_keyboard())
+
+    # Отримуємо telegram_id і user_name з повідомлення
+    telegram_id = message.from_user.id
     user_name = (f"{message.from_user.first_name} {message.from_user.last_name}"
                  if message.from_user.last_name else message.from_user.first_name)
+
     try:
         async with async_session() as session:
+            # Шукаємо користувача за telegram_id
             stmt = select(User).where(User.telegram_id == telegram_id)
             result = await session.execute(stmt)
             user = result.scalars().first()
             if not user:
-                logging.debug("User not found, creating new record")
+                # Якщо користувача немає – створюємо нового
                 user = User(telegram_id=telegram_id, user_name=user_name)
                 session.add(user)
                 await session.commit()
-                await state.update_data(user_id=user.id, telegram_id=telegram_id, user_name=user_name)
-                # Якщо користувач не знайдений, переходимо до введення нової адреси
-                if callback:
-                    # Редагуємо існуюче повідомлення, якщо воно є
-                    await bot.edit_message_text(
-                        chat_id=callback.message.chat.id,
-                        message_id=callback.message.message_id,
-                        text="Ваші дані записано. Введіть адресу.\nВведіть місто:",
-                        reply_markup=None
-                    )
-                else:
-                    await message.answer("Ваші дані записано. Введіть адресу.\nВведіть місто:")
-                await state.set_state(Form.city)
-            else:
-                logging.debug("User found")
-                await state.update_data(user_id=user.id, telegram_id=telegram_id, user_name=user_name)
-                stmt = select(Address).where(Address.user_id == user.id)
-                result = await session.execute(stmt)
-                addresses = result.scalars().all()
-                if addresses:
-                    logging.debug("Address found")
-                    text = "Ваші збережені адреси:\n"
-                    keyboard = InlineKeyboardMarkup(inline_keyboard=[])
-                    for addr in addresses:
-                        addr_text = f"{addr.city}, {addr.street}, {addr.house}"
-                        if addr.apartment:
-                            addr_text += f", кв. {addr.apartment}"
-                        # text += addr_text + "\n"
-                        keyboard.inline_keyboard.append(
-                            [InlineKeyboardButton(text=addr_text, callback_data=f"select_address_{addr.id}")]
-                        )
-                    keyboard.inline_keyboard.append(
-                        [InlineKeyboardButton(text="Додати нову адресу", callback_data="add_new_address")]
-                    )
-                    # Оновлюємо існуюче повідомлення, якщо callback передано, інакше відправляємо нове повідомлення
-                    if callback:
-                        await bot.edit_message_text(
-                            chat_id=callback.message.chat.id,
-                            message_id=callback.message.message_id,
-                            text="Оберіть адресу:",
-                            reply_markup=keyboard
-                        )
-                    else:
-                        await message.answer(text, reply_markup=keyboard)
-                    await state.set_state(Form.address_confirm)
-                else:
-                    logging.debug("Address not found")
-                    if callback:
-                        await bot.edit_message_text(
-                            chat_id=callback.message.chat.id,
-                            message_id=callback.message.message_id,
-                            text="Адреси не знайдено. Введіть адресу.\nВведіть місто:",
-                            reply_markup=None
-                        )
-                    else:
-                        await message.answer("Адреси не знайдено. Введіть адресу.\nВведіть місто:")
-                    await state.set_state(Form.city)
+            # Зберігаємо дані у FSM
+            await state.update_data(user_id=user.id, telegram_id=telegram_id, user_name=user_name)
+
+            # Завантажуємо адреси користувача
+            stmt_addr = select(Address).where(Address.user_id == user.id)
+            result_addr = await session.execute(stmt_addr)
+            addresses = result_addr.scalars().all()
+
+        if addresses:
+            # Формуємо inline клавіатуру із збереженими адресами
+            text = "Ваші збережені адреси:\n"
+            inline_kb = InlineKeyboardMarkup(inline_keyboard=[])
+            for addr in addresses:
+                addr_text = f"{addr.city}, {addr.street}, {addr.house}"
+                if addr.apartment:
+                    addr_text += f", кв. {addr.apartment}"
+                # text += addr_text + "\n"
+                inline_kb.inline_keyboard.append(
+                    [InlineKeyboardButton(text=addr_text, callback_data=f"select_address_{addr.id}")]
+                )
+            # Додаємо кнопку для додавання нової адреси
+            inline_kb.inline_keyboard.append(
+                [InlineKeyboardButton(text="Додати нову адресу", callback_data="add_new_address")]
+            )
+            # Надсилаємо повідомлення з inline клавіатурою
+            await message.answer(text, reply_markup=inline_kb)
+            await state.set_state(Form.address_confirm)
+        else:
+            # Якщо адрес немає, просимо їх ввести
+            await message.answer("Адреси не знайдено. Будь ласка, введіть адресу.\nВведіть місто:",
+                                 reply_markup=ReplyKeyboardRemove())
+            await state.set_state(Form.city)
     except Exception as e:
         logging.error(f"Error in cmd_start: {e}")
-        if callback:
-            await bot.edit_message_text(
-                chat_id=callback.message.chat.id,
-                message_id=callback.message.message_id,
-                text="Сталася помилка. Спробуйте пізніше.",
-                reply_markup=None
-            )
-        else:
-            await message.answer("Сталася помилка. Спробуйте пізніше.")
+        await message.answer("Сталася помилка. Спробуйте пізніше.")
+
+
+# @dp.message(Command("start"))
+# async def cmd_start(message: types.Message, state: FSMContext, user_id: int = None, callback: types.CallbackQuery = None):
+#     logging.debug(f"cmd_start отримав user_id: {user_id}")
+#     telegram_id = user_id or message.from_user.id
+#     user_name = (f"{message.from_user.first_name} {message.from_user.last_name}"
+#                  if message.from_user.last_name else message.from_user.first_name)
+#     try:
+#         async with async_session() as session:
+#             stmt = select(User).where(User.telegram_id == telegram_id)
+#             result = await session.execute(stmt)
+#             user = result.scalars().first()
+#             if not user:
+#                 logging.debug("User not found, creating new record")
+#                 user = User(telegram_id=telegram_id, user_name=user_name)
+#                 session.add(user)
+#                 await session.commit()
+#                 await state.update_data(user_id=user.id, telegram_id=telegram_id, user_name=user_name)
+#                 # Якщо користувач не знайдений, переходимо до введення нової адреси
+#                 if callback:
+#                     # Редагуємо існуюче повідомлення, якщо воно є
+#                     await bot.edit_message_text(
+#                         chat_id=callback.message.chat.id,
+#                         message_id=callback.message.message_id,
+#                         text="У Вас немає збережених адрес, створіть нову адресу.\nВведіть місто:",
+#                         reply_markup=None
+#                     )
+#                 else:
+#                     await message.answer("У Вас немає збережених адрес, створіть нову адресу.\nВведіть місто:")
+#                 await state.set_state(Form.city)
+#             else:
+#                 logging.debug("User found")
+#                 await state.update_data(user_id=user.id, telegram_id=telegram_id, user_name=user_name)
+#                 stmt = select(Address).where(Address.user_id == user.id)
+#                 result = await session.execute(stmt)
+#                 addresses = result.scalars().all()
+#                 if addresses:
+#                     logging.debug("Address found")
+#                     text = "Ваші збережені адреси:\n"
+#                     keyboard = InlineKeyboardMarkup(inline_keyboard=[])
+#                     for addr in addresses:
+#                         addr_text = f"{addr.city}, {addr.street}, {addr.house}"
+#                         if addr.apartment:
+#                             addr_text += f", кв. {addr.apartment}"
+#                         # text += addr_text + "\n"
+#                         keyboard.inline_keyboard.append(
+#                             [InlineKeyboardButton(text=addr_text, callback_data=f"select_address_{addr.id}")]
+#                         )
+#                     keyboard.inline_keyboard.append(
+#                         [InlineKeyboardButton(text="Додати нову адресу", callback_data="add_new_address")]
+#                     )
+#                     # Оновлюємо існуюче повідомлення, якщо callback передано, інакше відправляємо нове повідомлення
+#                     if callback:
+#                         await message.answer(
+#                             "Вітаємо! Оберіть опцію, натиснувши кнопку 'Розпочати'.",
+#                             reply_markup=persistent_reply_keyboard()
+#                         )
+#                         # await bot.edit_message_text(
+#                         #     chat_id=callback.message.chat.id,
+#                         #     message_id=callback.message.message_id,
+#                         #     text="Оберіть адресу:",
+#                         #     reply_markup=keyboard
+#                         # )
+#                     else:
+#                         await message.answer(text, reply_markup=persistent_reply_keyboard())
+#                     await state.set_state(Form.address_confirm)
+#                 else:
+#                     logging.debug("Address not found")
+#                     if callback:
+#                         await bot.edit_message_text(
+#                             chat_id=callback.message.chat.id,
+#                             message_id=callback.message.message_id,
+#                             text="Адреси не знайдено. Введіть адресу.\nВведіть місто:",
+#                             reply_markup=None
+#                         )
+#                     else:
+#                         await message.answer("Адреси не знайдено. Введіть адресу.\nВведіть місто:")
+#                     await state.set_state(Form.city)
+#     except Exception as e:
+#         logging.error(f"Error in cmd_start: {e}")
+#         if callback:
+#             await bot.edit_message_text(
+#                 chat_id=callback.message.chat.id,
+#                 message_id=callback.message.message_id,
+#                 text="Сталася помилка. Спробуйте пізніше.",
+#                 reply_markup=None
+#             )
+#         else:
+#             await message.answer("Сталася помилка. Спробуйте пізніше.")
 
 # -------------------- Message Handlers --------------------
 # Обробка введення адреси
@@ -423,9 +491,53 @@ async def process_select_address(callback: types.CallbackQuery, state: FSMContex
         await bot.edit_message_text(
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
-            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"Start\" для продовження",
-            reply_markup=start_keyboard()
+            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"/start\" для продовження",
+            reply_markup=None
         )
+
+# Варіант з reply клавіатурою
+# @dp.callback_query(F.data.startswith("select_address_"))
+# async def process_select_address(callback: types.CallbackQuery, state: FSMContext):
+#     logging.debug("Entered process_select_address handler")
+#     try:
+#         current_state = await state.get_state()
+#         if current_state != Form.address_confirm.state:
+#             return
+#         # Отримуємо id адреси із callback data
+#         addr_id = int(callback.data.split("_")[-1])
+#         await state.update_data(address_id=addr_id)
+#         await bot.answer_callback_query(callback.id)
+#
+#         # Завантажуємо дані адреси з бази даних
+#         async with async_session() as session:
+#             stmt = select(Address).where(Address.id == addr_id)
+#             result = await session.execute(stmt)
+#             address = result.scalars().first()
+#             if address:
+#                 full_address = f"{address.city}, {address.street}, {address.house}"
+#                 if address.apartment:
+#                     full_address += f", кв. {address.apartment}"
+#             else:
+#                 full_address = "невідома адреса"
+#
+#         # Отримуємо дані з FSM (user_id)
+#         data = await state.get_data()
+#         # Викликаємо reply клавіатуру main_menu_keyboard() – вона повертає ReplyKeyboardMarkup
+#         new_kb = main_reply_keyboard()
+#         # Надсилаємо нове повідомлення з reply клавіатурою
+#         await callback.message.answer(
+#             f"Оберіть опцію для адреси {full_address}:",
+#             reply_markup=new_kb
+#         )
+#         await state.set_state(Form.service)
+#     except Exception as e:
+#         logging.error(f"Помилка у process_select_address: {e}")
+#         data = await state.get_data()
+#         new_kb = main_reply_keyboard()
+#         await callback.message.answer(
+#             f"Оберіть опцію для адреси {full_address}:",
+#             reply_markup=new_kb
+#         )
 
 
 @dp.callback_query(lambda c: c.data == "add_new_address")
@@ -446,8 +558,8 @@ async def process_add_new_address(callback: types.CallbackQuery, state: FSMConte
         await bot.edit_message_text(
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
-            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"Start\" для продовження",
-            reply_markup=start_keyboard()
+            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"/start\" для продовження",
+            reply_markup=None
         )
 
 
@@ -460,12 +572,11 @@ async def process_service(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(service=service)
         await bot.answer_callback_query(callback.id)
         if service == "electricity":
-            kb = merge_keyboards(electricity_keyboards())
             await bot.edit_message_text(
                 chat_id=callback.message.chat.id,
                 message_id=callback.message.message_id,
-                text="Оберіть тип лічильника для електроенергії або натисніть \"Start\" для вибору адреси:",
-                reply_markup=kb
+                text="Оберіть тип лічильника для електроенергії або натисніть \"/start\" для вибору адреси:",
+                reply_markup=electricity_keyboards()
             )
             await state.set_state(Form.electricity_type)
         elif service == "gas":
@@ -488,8 +599,8 @@ async def process_service(callback: types.CallbackQuery, state: FSMContext):
             await bot.edit_message_text(
                 chat_id=callback.message.chat.id,
                 message_id=callback.message.message_id,
-                text="Ваші рахунки або натисніть \"Start\" для вибору адреси:",
-                reply_markup=start_keyboard()
+                text="Ваші рахунки або натисніть \"/start\" для вибору адреси:",
+                reply_markup=None
             )
             await state.set_state(Form.bill_address)
 
@@ -498,8 +609,8 @@ async def process_service(callback: types.CallbackQuery, state: FSMContext):
         await bot.edit_message_text(
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
-            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"Start\" для продовження",
-            reply_markup=start_keyboard()
+            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"/start\" для продовження",
+            reply_markup=None
         )
 
 
@@ -528,8 +639,8 @@ async def process_electricity_type(callback: types.CallbackQuery, state: FSMCont
         await bot.edit_message_text(
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
-            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"Start\" для продовження",
-            reply_markup=start_keyboard()
+            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"/start\" для продовження",
+            reply_markup=None
         )
 
 
@@ -575,29 +686,29 @@ async def process_bill_address(callback: types.CallbackQuery, state: FSMContext)
                 )
 
             if bills:
-                specific_kb = merge_keyboards(keyboard)
                 await bot.edit_message_text(
                     chat_id=callback.message.chat.id,
                     message_id=callback.message.message_id,
-                    text="Ваші збережені рахунки комунальних послуг або натисніть \"Start\" для вибору адреси:",
-                    reply_markup=specific_kb
+                    text="Ваші збережені рахунки комунальних послуг або натисніть \"/start\" для вибору адреси:",
+                    reply_markup=keyboard
                 )
 
             else:
                 await bot.edit_message_text(
                     chat_id=callback.message.chat.id,
                     message_id=callback.message.message_id,
-                    text="Рахунки за вибраною адресою не знайдено. Натисніть \"Start\" для вибору адреси:",
-                    reply_markup=start_keyboard()
+                    text="Рахунки за вибраною адресою не знайдено. Натисніть \"/start\" для вибору адреси:",
+                    reply_markup=None
                 )
+
         await state.clear()
     except Exception as e:
         logging.error(f"Помилка у process_bill_address: {e}")
         await bot.edit_message_text(
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
-            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"Start\" для продовження",
-            reply_markup=start_keyboard()
+            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"/start\" для продовження",
+            reply_markup=None
         )
 
 
@@ -663,6 +774,8 @@ async def process_bill_detail(callback: types.CallbackQuery, state: FSMContext):
             details += f"Спожито газу: {int(bill.gas_consumption)}\n"
             details += f"Тариф газ: {bill.tariff_gas}\n"
             details += f"Тариф газопостачання: {bill.tariff_gas_supply}\n"
+            details += f"Вартість газу: {bill.cost_gas:.2f} грн\n"
+            details += f"Вартість газопостачання: {bill.cost_gas_supply:.2f} грн\n"
             details += f"Загальна вартість: {bill.total_cost_gas:.2f} грн\n"
         elif bill.service == "Вивіз сміття":
             details += f"Кількість відвантажень: {int(bill.unloads)}\n"
@@ -675,16 +788,22 @@ async def process_bill_detail(callback: types.CallbackQuery, state: FSMContext):
         await bot.edit_message_text(
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
-            text=f"Ваш детальний рахунок:\n\n{details}\nДля вибору адреси натисніть:",
-            reply_markup=start_keyboard()
+            text=f"Ваш детальний рахунок:\n\n{details}\nДля вибору адреси натисніть \"/start\".",
+            reply_markup=None
         )
+
+        # await callback.message.answer(
+        #     text=f"Ваш детальний рахунок:\n\n{details}\nДля вибору адреси натисніть:",
+        #     reply_markup=main_menu_keyboard()
+        # )
+
     except Exception as e:
         logging.error(f"Помилка у process_bill_detail: {e}")
         await bot.edit_message_text(
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
-            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"Start\" для продовження",
-            reply_markup=start_keyboard()
+            text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"/start\" для продовження",
+            reply_markup=None
         )
 
 # -------------------- Решта Message Handlers --------------------
@@ -702,7 +821,6 @@ async def process_elec_one_current(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_elec_one_current: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_one_previous))
@@ -724,9 +842,9 @@ async def process_elec_one_previous(message: types.Message, state: FSMContext):
                 address_id=data["address_id"],
                 service="Електроенергія",
                 created_at=datetime.datetime.now(),
-                current=current,
-                previous=previous,
-                consumption=consumption,
+                current=int(current),
+                previous=int(previous),
+                consumption=int(consumption),
                 tariff=tariff,
                 total_cost=total_cost
             )
@@ -770,7 +888,6 @@ async def process_elec_one_previous(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_elec_two_previous_night: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 # ----------------- Електроенергія: Двозонний -----------------
@@ -786,7 +903,6 @@ async def process_elec_two_current_day(message: types.Message, state: FSMContext
     except Exception as e:
         logging.error(f"Помилка у process_elec_two_current_day: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_two_current_night))
@@ -801,7 +917,6 @@ async def process_elec_two_current_night(message: types.Message, state: FSMConte
     except Exception as e:
         logging.error(f"Помилка у process_elec_two_current_night: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_two_previous_day))
@@ -816,7 +931,6 @@ async def process_elec_two_previous_day(message: types.Message, state: FSMContex
     except Exception as e:
         logging.error(f"Помилка у process_elec_two_previous_day: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_two_previous_night))
@@ -844,13 +958,13 @@ async def process_elec_two_previous_night(message: types.Message, state: FSMCont
                 address_id=data["address_id"],
                 service="Електроенергія",
                 created_at=datetime.datetime.now(),
-                current_day_2=current_day,
-                current_night_2=current_night,
-                previous_day_2=previous_day,
-                previous_night_2=previous_night,
-                consumption_day_2=consumption_day,
-                consumption_night_2=consumption_night,
-                total_consumption_2=total_consumption,
+                current_day_2=int(current_day),
+                current_night_2=int(current_night),
+                previous_day_2=int(previous_day),
+                previous_night_2=int(previous_night),
+                consumption_day_2=int(consumption_day),
+                consumption_night_2=int(consumption_night),
+                total_consumption_2=int(total_consumption),
                 tariff_day_2=tariff_day,
                 tariff_night_2=tariff_night,
                 cost_day_2=cost_day,
@@ -899,7 +1013,6 @@ async def process_elec_two_previous_night(message: types.Message, state: FSMCont
     except Exception as e:
         logging.error(f"Помилка у process_elec_two_previous_night: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 # ----------------- Електроенергія: Трьохзонний -----------------
@@ -915,7 +1028,6 @@ async def process_elec_three_current_peak(message: types.Message, state: FSMCont
     except Exception as e:
         logging.error(f"Помилка у process_elec_three_current_peak: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_three_current_day))
@@ -930,7 +1042,6 @@ async def process_elec_three_current_day(message: types.Message, state: FSMConte
     except Exception as e:
         logging.error(f"Помилка у process_elec_three_current_day: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_three_current_night))
@@ -945,7 +1056,6 @@ async def process_elec_three_current_night(message: types.Message, state: FSMCon
     except Exception as e:
         logging.error(f"Помилка у process_elec_three_current_night: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_three_previous_peak))
@@ -960,7 +1070,6 @@ async def process_elec_three_previous_peak(message: types.Message, state: FSMCon
     except Exception as e:
         logging.error(f"Помилка у process_elec_three_previous_peak: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_three_previous_day))
@@ -975,7 +1084,6 @@ async def process_elec_three_previous_day(message: types.Message, state: FSMCont
     except Exception as e:
         logging.error(f"Помилка у process_elec_three_previous_day: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.elec_three_previous_night))
@@ -1008,16 +1116,16 @@ async def process_elec_three_previous_night(message: types.Message, state: FSMCo
                 address_id=data["address_id"],
                 service="Електроенергія",
                 created_at=datetime.datetime.now(),
-                current_peak=current_peak,
-                current_day_3=current_day,
-                current_night_3=current_night,
-                previous_peak=previous_peak,
-                previous_day_3=previous_day,
-                previous_night_3=previous_night,
-                consumption_peak=consumption_peak,
-                consumption_day_3=consumption_day,
-                consumption_night_3=consumption_night,
-                total_consumption_3=total_consumption,
+                current_peak=int(current_peak),
+                current_day_3=int(current_day),
+                current_night_3=int(current_night),
+                previous_peak=int(previous_peak),
+                previous_day_3=int(previous_day),
+                previous_night_3=int(previous_night),
+                consumption_peak=int(consumption_peak),
+                consumption_day_3=int(consumption_day),
+                consumption_night_3=int(consumption_night),
+                total_consumption_3=int(total_consumption),
                 tariff_peak=tariff_peak,
                 tariff_day_3=tariff_day,
                 tariff_night_3=tariff_night,
@@ -1051,7 +1159,7 @@ async def process_elec_three_previous_night(message: types.Message, state: FSMCo
             f"Користувач:    {user_name}\n"
             f"Адреса:    {city}, {street}, {house}, {apartment}\n"
             f"{'-' * 47}\n"
-            f"Послуга:    лектроенергія (Трьохзонний)\n"
+            f"Послуга:    Електроенергія (Трьохзонний)\n"
             f"Показники Пік:    {int(current_peak)} - {int(previous_peak)}\n"
             f"Показники День:    {int(current_day)} - {int(previous_day)}\n"
             f"Показники Ніч:    {int(current_night)} - {int(previous_night)}\n"
@@ -1071,7 +1179,6 @@ async def process_elec_three_previous_night(message: types.Message, state: FSMCo
     except Exception as e:
         logging.error(f"Помилка у process_elec_three_previous_night: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 # ----------------- Газ та Газопостачання -----------------
@@ -1087,7 +1194,6 @@ async def process_gas_current(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_gas_current: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.gas_previous))
@@ -1112,9 +1218,9 @@ async def process_gas_previous(message: types.Message, state: FSMContext):
                 address_id=data["address_id"],
                 service="Газ та Газопостачання",
                 created_at=datetime.datetime.now(),
-                gas_current=current,
-                gas_previous=previous,
-                gas_consumption=gas_consumption,
+                gas_current=int(current),
+                gas_previous=int(previous),
+                gas_consumption=int(gas_consumption),
                 tariff_gas=tariff_gas,
                 tariff_gas_supply=tariff_supply,
                 cost_gas=cost_gas,
@@ -1150,7 +1256,7 @@ async def process_gas_previous(message: types.Message, state: FSMContext):
             f"Показники:    {int(current)} - {int(previous)}\n"
             f"Спожито:    {int(gas_consumption)} м³\n"
             f"Тариф Газ:    {tariff_gas:.2f} грн/м³\n"
-            f"Тариф Газопостачання:    {tariff_supply:.2f} грн/м³\n"
+            f"Тариф Газопостачання:    {tariff_supply:.3f} грн/м³\n"
             f"Вартість Газ:    {cost_gas:.2f} грн\n"
             f"Вартість Газопостачання:    {cost_supply:.2f} грн\n"
             f"{'-' * 47}\n"
@@ -1163,7 +1269,6 @@ async def process_gas_previous(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_gas_previous: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 # ----------------- Вивіз сміття -----------------
 @dp.message(F.text, StateFilter(Form.trash_unloads))
@@ -1178,7 +1283,6 @@ async def process_trash_unloads(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_trash_unloads: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 @dp.message(F.text, StateFilter(Form.trash_bins))
@@ -1246,7 +1350,6 @@ async def process_trash_bins(message: types.Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Помилка у process_trash_bins: {e}")
         await message.answer("Сталася помилка. Спробуйте пізніше.")
-        start_keyboard()
 
 
 # Функція, що виконується при старті: ініціалізація БД та очищення старих рахунків
