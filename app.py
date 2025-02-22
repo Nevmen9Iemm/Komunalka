@@ -595,7 +595,7 @@ async def process_bill_detail(callback: types.CallbackQuery, state: FSMContext):
             return
 
         # Форматуємо дату
-        created_at_str = bill.created_at.strftime("%Y-%m-%d %H:%M:%S") if bill.created_at else "N/A"
+        created_at_str = bill.created_at.strftime("%d-%m-%Y %H:%M") if bill.created_at else "N/A"
         details = f"Рахунок №{bill_id}\nДата: {created_at_str}\nПослуга: {bill.service}\n\n"
 
         if bill.service == "Електроенергія":
@@ -736,7 +736,7 @@ async def process_elec_one_previous(message: types.Message, state: FSMContext):
         # Формування рахунку з округленням числових значень до 2-х десяткових
         bill_text = (
             f"{'-' * 47}\n"
-            f"Дата:    {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Дата:    {datetime.datetime.now().strftime('%d-%m-%Y %H:%M')}\n"
             f"Користувач:    {user_name}\n"
             f"Адреса:    {city}, {street}, {house}, {apartment}\n"
             f"{'-' * 47}\n"
@@ -858,7 +858,7 @@ async def process_elec_two_previous_night(message: types.Message, state: FSMCont
         # Формування рахунку з округленням числових значень до 2-х десяткових
         bill_text = (
             f"{'-' * 47}\n"
-            f"Дата:    {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Дата:    {datetime.datetime.now().strftime('%d-%m-%Y %H:%M')}\n"
             f"Користувач:    {user_name}\n"
             f"Адреса:    {city}, {street}, {house}, {apartment}\n"
             f"{'-' * 47}\n"
@@ -1021,7 +1021,7 @@ async def process_elec_three_previous_night(message: types.Message, state: FSMCo
         # Формування рахунку з округленням числових значень до 2-х десяткових
         bill_text = (
             f"{'-' * 47}\n"
-            f"Дата:    {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Дата:    {datetime.datetime.now().strftime('%d-%m-%Y %H:%M')}\n"
             f"Користувач:    {user_name}\n"
             f"Адреса:    {city}, {street}, {house}, {apartment}\n"
             f"{'-' * 47}\n"
@@ -1114,7 +1114,7 @@ async def process_gas_previous(message: types.Message, state: FSMContext):
         # Формування рахунку з округленням числових значень до 2-х десяткових
         bill_text = (
             f"{'-' * 47}\n"
-            f"Дата:    {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Дата:    {datetime.datetime.now().strftime('%d-%m-%Y %H:%M')}\n"
             f"користувач:    {user_name}\n"
             f"Адреса:    {city}, {street}, {house}, {apartment}\n"
             f"{'-' * 47}\n"
@@ -1198,7 +1198,7 @@ async def process_trash_bins(message: types.Message, state: FSMContext):
         # Формування рахунку з округленням числових значень до 2-х десяткових
         bill_text = (
             f"{'-' * 47}\n"
-            f"Дата:    {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Дата:    {datetime.datetime.now().strftime('%d-%m-%Y %H:%M')}\n"
             f"Користувач:    {user_name}\n"
             f"Адреса: {city}, {street}, {house}, {apartment}\n"
             f"{'-' * 47}\n"
