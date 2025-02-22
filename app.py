@@ -16,9 +16,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, sel
 
 import config  # Файл config.py повинен містити змінну TG_TOKEN
 from keyboards.inline import electricity_keyboards, start_keyboard, merge_keyboards, menu_keyboards
-from keyboards.reply import persistent_reply_keyboard
-
-
+from keyboards.reply import persistent_reply_keyboard, main_reply_keyboard
 
 # Налаштування логування
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -240,94 +238,6 @@ async def cmd_start(message: types.Message, state: FSMContext):
         await message.answer("Сталася помилка. Спробуйте пізніше.")
 
 
-# @dp.message(Command("start"))
-# async def cmd_start(message: types.Message, state: FSMContext, user_id: int = None, callback: types.CallbackQuery = None):
-#     logging.debug(f"cmd_start отримав user_id: {user_id}")
-#     telegram_id = user_id or message.from_user.id
-#     user_name = (f"{message.from_user.first_name} {message.from_user.last_name}"
-#                  if message.from_user.last_name else message.from_user.first_name)
-#     try:
-#         async with async_session() as session:
-#             stmt = select(User).where(User.telegram_id == telegram_id)
-#             result = await session.execute(stmt)
-#             user = result.scalars().first()
-#             if not user:
-#                 logging.debug("User not found, creating new record")
-#                 user = User(telegram_id=telegram_id, user_name=user_name)
-#                 session.add(user)
-#                 await session.commit()
-#                 await state.update_data(user_id=user.id, telegram_id=telegram_id, user_name=user_name)
-#                 # Якщо користувач не знайдений, переходимо до введення нової адреси
-#                 if callback:
-#                     # Редагуємо існуюче повідомлення, якщо воно є
-#                     await bot.edit_message_text(
-#                         chat_id=callback.message.chat.id,
-#                         message_id=callback.message.message_id,
-#                         text="У Вас немає збережених адрес, створіть нову адресу.\nВведіть місто:",
-#                         reply_markup=None
-#                     )
-#                 else:
-#                     await message.answer("У Вас немає збережених адрес, створіть нову адресу.\nВведіть місто:")
-#                 await state.set_state(Form.city)
-#             else:
-#                 logging.debug("User found")
-#                 await state.update_data(user_id=user.id, telegram_id=telegram_id, user_name=user_name)
-#                 stmt = select(Address).where(Address.user_id == user.id)
-#                 result = await session.execute(stmt)
-#                 addresses = result.scalars().all()
-#                 if addresses:
-#                     logging.debug("Address found")
-#                     text = "Ваші збережені адреси:\n"
-#                     keyboard = InlineKeyboardMarkup(inline_keyboard=[])
-#                     for addr in addresses:
-#                         addr_text = f"{addr.city}, {addr.street}, {addr.house}"
-#                         if addr.apartment:
-#                             addr_text += f", кв. {addr.apartment}"
-#                         # text += addr_text + "\n"
-#                         keyboard.inline_keyboard.append(
-#                             [InlineKeyboardButton(text=addr_text, callback_data=f"select_address_{addr.id}")]
-#                         )
-#                     keyboard.inline_keyboard.append(
-#                         [InlineKeyboardButton(text="Додати нову адресу", callback_data="add_new_address")]
-#                     )
-#                     # Оновлюємо існуюче повідомлення, якщо callback передано, інакше відправляємо нове повідомлення
-#                     if callback:
-#                         await message.answer(
-#                             "Вітаємо! Оберіть опцію, натиснувши кнопку 'Розпочати'.",
-#                             reply_markup=persistent_reply_keyboard()
-#                         )
-#                         # await bot.edit_message_text(
-#                         #     chat_id=callback.message.chat.id,
-#                         #     message_id=callback.message.message_id,
-#                         #     text="Оберіть адресу:",
-#                         #     reply_markup=keyboard
-#                         # )
-#                     else:
-#                         await message.answer(text, reply_markup=persistent_reply_keyboard())
-#                     await state.set_state(Form.address_confirm)
-#                 else:
-#                     logging.debug("Address not found")
-#                     if callback:
-#                         await bot.edit_message_text(
-#                             chat_id=callback.message.chat.id,
-#                             message_id=callback.message.message_id,
-#                             text="Адреси не знайдено. Введіть адресу.\nВведіть місто:",
-#                             reply_markup=None
-#                         )
-#                     else:
-#                         await message.answer("Адреси не знайдено. Введіть адресу.\nВведіть місто:")
-#                     await state.set_state(Form.city)
-#     except Exception as e:
-#         logging.error(f"Error in cmd_start: {e}")
-#         if callback:
-#             await bot.edit_message_text(
-#                 chat_id=callback.message.chat.id,
-#                 message_id=callback.message.message_id,
-#                 text="Сталася помилка. Спробуйте пізніше.",
-#                 reply_markup=None
-#             )
-#         else:
-#             await message.answer("Сталася помилка. Спробуйте пізніше.")
 
 # -------------------- Message Handlers --------------------
 # Обробка введення адреси
@@ -494,50 +404,6 @@ async def process_select_address(callback: types.CallbackQuery, state: FSMContex
             text="Сталася помилка. Спробуйте пізніше. Натисніть кнопку \"/start\" для продовження",
             reply_markup=None
         )
-
-# Варіант з reply клавіатурою
-# @dp.callback_query(F.data.startswith("select_address_"))
-# async def process_select_address(callback: types.CallbackQuery, state: FSMContext):
-#     logging.debug("Entered process_select_address handler")
-#     try:
-#         current_state = await state.get_state()
-#         if current_state != Form.address_confirm.state:
-#             return
-#         # Отримуємо id адреси із callback data
-#         addr_id = int(callback.data.split("_")[-1])
-#         await state.update_data(address_id=addr_id)
-#         await bot.answer_callback_query(callback.id)
-#
-#         # Завантажуємо дані адреси з бази даних
-#         async with async_session() as session:
-#             stmt = select(Address).where(Address.id == addr_id)
-#             result = await session.execute(stmt)
-#             address = result.scalars().first()
-#             if address:
-#                 full_address = f"{address.city}, {address.street}, {address.house}"
-#                 if address.apartment:
-#                     full_address += f", кв. {address.apartment}"
-#             else:
-#                 full_address = "невідома адреса"
-#
-#         # Отримуємо дані з FSM (user_id)
-#         data = await state.get_data()
-#         # Викликаємо reply клавіатуру main_menu_keyboard() – вона повертає ReplyKeyboardMarkup
-#         new_kb = main_reply_keyboard()
-#         # Надсилаємо нове повідомлення з reply клавіатурою
-#         await callback.message.answer(
-#             f"Оберіть опцію для адреси {full_address}:",
-#             reply_markup=new_kb
-#         )
-#         await state.set_state(Form.service)
-#     except Exception as e:
-#         logging.error(f"Помилка у process_select_address: {e}")
-#         data = await state.get_data()
-#         new_kb = main_reply_keyboard()
-#         await callback.message.answer(
-#             f"Оберіть опцію для адреси {full_address}:",
-#             reply_markup=new_kb
-#         )
 
 
 @dp.callback_query(lambda c: c.data == "add_new_address")
@@ -1361,6 +1227,7 @@ async def on_startup():
 async def main():
     await on_startup()
     await dp.start_polling(bot)
+    main_reply_keyboard()
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
